@@ -71,4 +71,4 @@ Everything is driven by `.env` at the repo root. Only `GCP_PROJECT` and `PULL_SE
 
 ## License
 
-Specify before publishing.
+[GNU General Public License v3.0](./LICENSE).
