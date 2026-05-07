@@ -111,7 +111,7 @@ oc get nodes         # → one Ready node
 helm version         # → v3.x
 ```
 
-To get your local Helm chart or scripts onto the VM:
+To get your local Helm chart or scripts onto the VM (the `~/work/` directory is created on the VM during bootstrap):
 
 ```sh
 gcloud compute scp --recurse ./your-stuff $VM_NAME:~/work/ \
@@ -217,3 +217,24 @@ First-time SSH on a new project is slow (~30 s). Subsequent connections are fast
 
 **Bill creep**
 Run `gcloud compute instances list --project=$GCP_PROJECT` and `gcloud compute disks list --project=$GCP_PROJECT` to spot anything left running. `99-destroy.sh` is the one-shot cleanup.
+
+**`gcloud` prints "consider installing NumPy" during SSH/SCP**
+Informational only. The IAP TCP forwarder runs in pure Python; NumPy makes the per-packet copy noticeably faster, which matters for `scp --recurse`. The reliable way to install it into the exact Python gcloud is using:
+
+```sh
+PYBIN="$(gcloud info --format='value(basic.python_location)')"
+"$PYBIN" -m pip install --user numpy
+
+# If that errors with "No module named pip":
+"$PYBIN" -m ensurepip --user
+"$PYBIN" -m pip install --user numpy
+
+# Verify:
+"$PYBIN" -c "import numpy; print(numpy.__version__)"
+```
+
+If gcloud uses your system Python (Homebrew or distro-packaged installs), you may also need to tell gcloud to look at user site-packages:
+
+```sh
+export CLOUDSDK_PYTHON_SITEPACKAGES=1   # add to ~/.bashrc / ~/.zshrc to persist
+```

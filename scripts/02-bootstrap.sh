@@ -112,5 +112,17 @@ export PATH="$HOME/.local/bin:$PATH"
 crc config set consent-telemetry no >/dev/null
 # Idempotent — `crc setup` is safe to re-run.
 crc setup
+
+# Pre-create the conventional drop-zone for user-supplied scripts/charts
+# referenced in INSTALL.md, so `scp --recurse … :~/work/` behaves predictably.
+mkdir -p "$HOME/work"
+
+# Make `oc` and KUBECONFIG available in every future shell (no-op until
+# `crc start` succeeds — the 2>/dev/null hides the "cluster not running"
+# error so login shells open cleanly even when CRC is stopped).
+OC_LINE='eval "$(crc oc-env 2>/dev/null)"'
+if ! grep -Fxq "$OC_LINE" "$HOME/.bashrc" 2>/dev/null; then
+  printf '\n# Added by 02-bootstrap.sh — auto-load CRC oc/kubeconfig\n%s\n' "$OC_LINE" >> "$HOME/.bashrc"
+fi
 REMOTE
 ok "Bootstrap complete. Next: ./scripts/03-start-crc.sh"
