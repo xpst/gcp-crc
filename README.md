@@ -1,4 +1,4 @@
-# gcp-openshift
+# gcp-crc
 
 Bash scripts that spin up a single-node OpenShift cluster (via [CRC](https://crc.dev/) — OpenShift Local) on a Google Cloud VM with nested virtualization, then drop you into a shell where `oc` and `helm` are ready to use.
 

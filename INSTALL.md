@@ -53,7 +53,6 @@ Download the installer from <https://cloud.google.com/sdk/docs/install> and run 
 
 ```sh
 gcloud init                                                # interactive: pick account + project
-gcloud auth application-default login                      # for libraries / IAP tunneling
 gcloud services enable compute.googleapis.com --project=YOUR_PROJECT_ID
 gcloud services enable iap.googleapis.com --project=YOUR_PROJECT_ID
 ```
@@ -69,8 +68,8 @@ gcloud compute instances list --project=YOUR_PROJECT_ID
 ## 4. One-time repo setup
 
 ```sh
-git clone <this-repo> gcp-openshift   # or however you got the files
-cd gcp-openshift
+git clone <this-repo> gcp-crc   # or however you got the files
+cd gcp-crc
 cp .env.example .env
 $EDITOR .env
 ```
@@ -91,9 +90,11 @@ Everything else has a default. See `.env.example` for what each variable does.
 | 1 | `./scripts/00-preflight.sh` | Validates env, gcloud auth, API enablement, pull secret, zone capability. Read-only. | <30 s |
 | 2 | `./scripts/01-provision-vm.sh` | Creates the VM with nested virt and waits for SSH. | 1–2 min |
 | 3 | `./scripts/02-bootstrap.sh` | SSHs in, installs KVM/libvirt, downloads CRC + helm, copies the pull secret, runs `crc setup`. | 5–10 min |
-| 4 | `./scripts/03-start-crc.sh` | Configures CRC resources and runs `crc start`. Prints credentials when done. | 10–20 min |
+| 4 | `./scripts/03-start-crc.sh` | Configures CRC resources and runs `crc start`. Prints credentials when done. | 10–20 min first run, ~3 min afterwards |
 
-All four scripts are idempotent — re-running them after a successful run is a no-op.
+The first `03-start-crc.sh` run downloads a ~5 GB OpenShift release bundle silently (the SSH session has no TTY, so CRC suppresses its progress bar). It's not stuck — see the troubleshooting section below.
+
+All four scripts are idempotent — re-running them after a successful run is a no-op (or a quick status check).
 
 ---
 
@@ -158,8 +159,10 @@ The kubeadmin password was printed by `03-start-crc.sh`. Re-fetch it any time wi
 
 ```sh
 gcloud compute ssh $VM_NAME --zone=$GCP_ZONE --project=$GCP_PROJECT --tunnel-through-iap \
-  --command='~/.local/bin/crc console --credentials'
+  --command='crc console --credentials'
 ```
+
+(`crc` is on PATH because `02-bootstrap.sh` added `~/.local/bin` to `~/.bashrc`.)
 
 **Note**: ports 80 and 443 require sudo on most laptops. Override `LOCAL_HTTP_PORT=8080` and `LOCAL_HTTPS_PORT=8443` in `.env` to avoid sudo, but routes that hard-code `:443` won't work without further proxying.
 
@@ -205,6 +208,19 @@ The VM was created without nested virt or on a CPU platform that doesn't support
 
 **`crc start` rejects the pull secret**
 The file at `PULL_SECRET_PATH` is empty, malformed, or expired. Re-download from <https://console.redhat.com/openshift/create/local> and re-run `02-bootstrap.sh`.
+
+**`03-start-crc.sh` looks stuck after `Downloading bundle: …`**
+It's not — `crc start` is downloading a ~4.5–5 GB OpenShift bundle from `mirror.openshift.com`. Since the SSH session is non-interactive (no TTY), CRC's progress bar is suppressed, so you only see the start and end messages. Watch progress in another terminal:
+
+```sh
+gcloud compute ssh $VM_NAME --zone=$GCP_ZONE --project=$GCP_PROJECT --tunnel-through-iap \
+  --command='watch -n 2 "ls -lh ~/.crc/cache/*.crcbundle* 2>/dev/null"'
+```
+
+Realistic time on `n2-standard-16`: 5–15 min for the download, then another 5–10 min to extract and start.
+
+**`oc: command not found` after SSHing in directly**
+`oc` is shipped by CRC at `~/.crc/bin/oc` and exposed via `crc oc-env`. `02-bootstrap.sh` adds `eval "$(crc oc-env 2>/dev/null)"` to `~/.bashrc`, so any *new* shell after CRC is running picks it up automatically. If your existing shell predates that change (or you ran the bootstrap before this fix), either open a new SSH session or run `eval "$(crc oc-env)"` once. (`crc oc-env` only emits exports when `crc status` shows `OpenShift: Running`.)
 
 **`helm` not found inside `05-shell.sh`**
 Bootstrap was interrupted before the helm install step. Re-run `./scripts/02-bootstrap.sh`; it'll skip already-installed components and finish the rest.
