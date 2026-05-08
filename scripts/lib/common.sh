@@ -50,6 +50,7 @@ apply_defaults() {
   : "${MIN_CPU_PLATFORM:=Intel Cascade Lake}"
   : "${BOOT_DISK_SIZE:=200GB}"
   : "${BOOT_DISK_TYPE:=pd-ssd}"
+  : "${ENABLE_SPOT_VM:=false}"
   : "${IMAGE_FAMILY:=rocky-linux-9-optimized-gcp}"
   : "${IMAGE_PROJECT:=rocky-linux-cloud}"
   : "${SSH_USER:=}"
@@ -62,6 +63,14 @@ apply_defaults() {
   : "${LOCAL_API_PORT:=6443}"
   : "${LOCAL_HTTP_PORT:=80}"
   : "${LOCAL_HTTPS_PORT:=443}"
+}
+
+# Truthiness check for boolean-ish env vars. Accepts true|1|yes|on (any case).
+is_truthy() {
+  case "${1,,}" in
+    true|1|yes|on) return 0 ;;
+    *)             return 1 ;;
+  esac
 }
 
 # Fail with a clear message if a required var is empty.
@@ -144,6 +153,7 @@ print_config() {
   GCP_ZONE          = $GCP_ZONE
   VM_NAME           = $VM_NAME
   MACHINE_TYPE      = $MACHINE_TYPE  (min CPU: $MIN_CPU_PLATFORM)
+  PROVISIONING      = $(is_truthy "$ENABLE_SPOT_VM" && echo 'spot (terminate: DELETE)' || echo 'standard')
   BOOT_DISK         = $BOOT_DISK_SIZE / $BOOT_DISK_TYPE
   IMAGE             = $IMAGE_FAMILY ($IMAGE_PROJECT)
   SSH_USER          = ${SSH_USER:-<gcloud default>}

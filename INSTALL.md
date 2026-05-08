@@ -21,7 +21,7 @@ You SSH into the host VM and run `helm install …` and your own scripts there. 
 
 ## 2. Prerequisites
 
-- A **GCP project** with billing enabled and a quota that allows one `n2-standard-16` instance with a 200 GB SSD (about $0.78/hr running, $0.04/hr stopped).
+- A **GCP project** with billing enabled and a quota that allows one `n2-standard-16` instance with a 200 GB SSD (about $0.78/hr running, $0.04/hr stopped). Optionally set `ENABLE_SPOT_VM=true` in `.env` for a Spot VM at ~60–91% off — GCP may preempt and delete it at any time (see [§8](#8-daily-use)).
 - A **Red Hat account** and a downloaded `pull-secret.json` from <https://console.redhat.com/openshift/create/local>.
 - **bash** + **ssh** + **curl** on the machine running these scripts. macOS and Linux are fine; Windows users should use WSL.
 - **gcloud SDK** (next section).
@@ -178,6 +178,20 @@ STOP_VM=1 ./scripts/10-stop-crc.sh   # crc stop AND stop the VM (saves $$)
 ```
 
 Stopped VM disk costs ≈ $0.04/hr ($1/day) vs ≈ $0.78/hr running.
+
+### Spot VM (cheaper, can vanish)
+
+Set `ENABLE_SPOT_VM=true` in `.env` before running `01-provision-vm.sh` to provision the VM with `--provisioning-model=SPOT --instance-termination-action=DELETE`. Spot VMs are ~60–91% cheaper than on-demand, but GCP can preempt them at any time with ~30s notice — when that happens the VM **and its boot disk** are deleted, so any state inside CRC is gone.
+
+If you get preempted, just re-run the chain from scratch:
+
+```sh
+./scripts/01-provision-vm.sh
+./scripts/02-bootstrap.sh
+./scripts/03-start-crc.sh
+```
+
+Toggling `ENABLE_SPOT_VM` for an existing VM has no effect — the provisioning model is fixed at create time. Run `99-destroy.sh` and re-provision to switch.
 
 Next morning:
 

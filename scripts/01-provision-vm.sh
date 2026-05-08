@@ -15,17 +15,24 @@ require_var GCP_PROJECT
 if vm_exists; then
   ok "VM '$VM_NAME' already exists in $GCP_ZONE — skipping create."
 else
-  log "Creating VM '$VM_NAME' in $GCP_ZONE..."
-  run gc compute instances create "$VM_NAME" \
-    --zone="$GCP_ZONE" \
-    --machine-type="$MACHINE_TYPE" \
-    --min-cpu-platform="$MIN_CPU_PLATFORM" \
-    --image-project="$IMAGE_PROJECT" \
-    --image-family="$IMAGE_FAMILY" \
-    --boot-disk-size="$BOOT_DISK_SIZE" \
-    --boot-disk-type="$BOOT_DISK_TYPE" \
-    --enable-nested-virtualization \
+  create_args=(
+    "$VM_NAME"
+    --zone="$GCP_ZONE"
+    --machine-type="$MACHINE_TYPE"
+    --min-cpu-platform="$MIN_CPU_PLATFORM"
+    --image-project="$IMAGE_PROJECT"
+    --image-family="$IMAGE_FAMILY"
+    --boot-disk-size="$BOOT_DISK_SIZE"
+    --boot-disk-type="$BOOT_DISK_TYPE"
+    --enable-nested-virtualization
     --metadata=enable-oslogin=TRUE
+  )
+  if is_truthy "$ENABLE_SPOT_VM"; then
+    warn "ENABLE_SPOT_VM=true: creating a Spot VM. GCP may preempt it at any time and the boot disk will be DELETED on preemption."
+    create_args+=( --provisioning-model=SPOT --instance-termination-action=DELETE )
+  fi
+  log "Creating VM '$VM_NAME' in $GCP_ZONE..."
+  run gc compute instances create "${create_args[@]}"
   ok "VM created."
 fi
 

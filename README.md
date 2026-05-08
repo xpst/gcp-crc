@@ -63,7 +63,7 @@ Full step-by-step instructions, including how to install `gcloud`, where to get 
 - A Red Hat account and a `pull-secret.json` from <https://console.redhat.com/openshift/create/local>.
 - `gcloud` SDK, `bash`, `ssh`, `curl` on whichever machine runs the scripts. macOS/Linux/WSL.
 
-Cost: ≈ $0.78/hr while running, ≈ $0.04/hr stopped (boot disk only). One full day of running ≈ $19.
+Cost: ≈ $0.78/hr while running, ≈ $0.04/hr stopped (boot disk only). One full day of running ≈ $19. Set `ENABLE_SPOT_VM=true` in `.env` for a ~60–91% discount via Spot VM (GCP may preempt and delete the VM with ~30s notice — re-run `01→03` to recover).
 
 ## Configuration
 
